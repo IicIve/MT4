@@ -4,6 +4,7 @@
 #include <imgui.h>
 #include <algorithm>
 #include <string>
+#include <numbers>
 
 struct Matrix4x4 {
 	float m[4][4];
@@ -29,11 +30,22 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	Vector3 Normalize(Vector3 v1);
 	void MatrixScreenPrintf(int x, int y, const Matrix4x4 & matrix, const char label[]);
-	Matrix4x4 MakeRotateAxisAngle(const Vector3 & axis, float angle);
+	//Matrix4x4 MakeRotateAxisAngle(const Vector3 & axis, float angle);
+	Matrix4x4 DirectionToDirection(const Vector3 & from, const Vector3 & to);
 
-	Vector3 axis = Normalize({ 1.0f, 1.0f, 1.0f });
+	Vector3 from0 = Normalize(Vector3{ 1.0f,0.7f, 0.5f });
+	Vector3 to0 = Vector3{ -from0.x, -from0.y, -from0.z };
+	Vector3 from1 = Normalize(Vector3{ -0.6f,0.9f, 0.2f });
+	Vector3 to1 = Normalize(Vector3{ 0.4f, 0.7f, -0.5f });
+	Matrix4x4 rotateMatrix0 = DirectionToDirection(
+		Normalize(Vector3{ 1.0f,0.0f,0.0f }), Normalize(Vector3{ -1.0f,0.0f, 0.0f })
+	);
+	Matrix4x4 rotateMatrix1 = DirectionToDirection(from0, to0);
+	Matrix4x4 rotateMatrix2 = DirectionToDirection(from1, to1);
+
+	/*Vector3 axis = Normalize({ 1.0f, 1.0f, 1.0f });
 	float angle = 0.44f;
-	Matrix4x4 rotateMatrix = MakeRotateAxisAngle(axis, angle);
+	Matrix4x4 rotateMatrix = MakeRotateAxisAngle(axis, angle);*/
 
 	// ウィンドウの×ボタンが押されるまでループ
 	while (Novice::ProcessMessage() == 0) {
@@ -56,7 +68,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		/// ↓描画処理ここから
 		///
 
-		MatrixScreenPrintf(0, 0, rotateMatrix, "rotateMatrix");
+		MatrixScreenPrintf(0, 0, rotateMatrix2, "rotateMatrix0");
+		//MatrixScreenPrintf(0, 100, rotateMatrix1, "rotateMatrix1");
+		//MatrixScreenPrintf(0, 0, rotateMatrix2, "rotateMatrix2");
 
 		///
 		/// ↑描画処理ここまで
@@ -74,6 +88,46 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	// ライブラリの終了
 	Novice::Finalize();
 	return 0;
+}
+
+float Dot(const Vector3& v1, const Vector3& v2) {
+	float result;
+
+	result = v1.x * v2.x + v1.y * v2.y + v1.z * v2.z;
+
+	return result;
+}
+
+Vector3 Cross(const Vector3& v1, const Vector3& v2) {
+	Vector3 result;
+	result.x = v1.y * v2.z - v1.z * v2.y;
+	result.y = v1.z * v2.x - v1.x * v2.z;
+	result.z = v1.x * v2.y - v1.y * v2.x;
+	return result;
+}
+
+float Length(const Vector3& v) {
+	return std::sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
+}
+
+Vector3 Normalize(Vector3 v1) {
+	Vector3 result;
+
+	result.x = v1.x / std::sqrtf(Dot(v1, v1));
+	result.y = v1.y / std::sqrtf(Dot(v1, v1));
+	result.z = v1.z / std::sqrtf(Dot(v1, v1));
+
+	return result;
+}
+
+Matrix4x4 MakeIdentity4x4() {
+	Matrix4x4 result = {};
+
+	for (int i = 0; i < 4; ++i) {
+		result.m[i][i] = 1.0f;
+	}
+
+	return result;
 }
 
 Matrix4x4 MakeRotateAxisAngle(const Vector3& axis, float angle) {
@@ -116,15 +170,15 @@ Matrix4x4 MakeRotateAxisAngle(const Vector3& axis, float angle) {
 	// C = [a]_× sinθ
 	Matrix4x4 C = {};
 	C.m[0][0] = 0.0f;
-	C.m[0][1] = n.z * s;    // ← 符号を反転
-	C.m[0][2] = -n.y * s;
+	C.m[0][1] = -n.z * s;    // ← 符号を反転
+	C.m[0][2] = n.y * s;
 
-	C.m[1][0] = -n.z * s;
+	C.m[1][0] = n.z * s;
 	C.m[1][1] = 0.0f;
-	C.m[1][2] = n.x * s;
+	C.m[1][2] = -n.x * s;
 
-	C.m[2][0] = n.y * s;
-	C.m[2][1] = -n.x * s;
+	C.m[2][0] = -n.y * s;
+	C.m[2][1] = n.x * s;
 	C.m[2][2] = 0.0f;
 
 	C.m[3][3] = 1.0f;
@@ -141,23 +195,31 @@ Matrix4x4 MakeRotateAxisAngle(const Vector3& axis, float angle) {
 
 }
 
-float Dot(const Vector3& v1, const Vector3& v2) {
-	float result;
+Matrix4x4 DirectionToDirection(const Vector3& from, const Vector3& to) {
+	
+	Vector3 f = Normalize(from);
+	Vector3 t = Normalize(to);
 
-	result = v1.x * v2.x + v1.y * v2.y + v1.z * v2.z;
+	float dotValue = Dot(f, t);
+	dotValue = std::clamp(dotValue, -1.0f, 1.0f);
+	float angle = std::acos(dotValue);
 
-	return result;
+	if (std::fabs(angle) < 1e-5f) {
+		return MakeIdentity4x4();
+	}
+
+	float pi = std::numbers::pi_v<float>;
+	if (std::fabs(angle - pi) < 1e-5f) {
+		Vector3 ortho = (std::fabs(f.x) < 0.9f) ? Vector3{ 1, 0, 0 } : Vector3{ 0, 1, 0 };
+		Vector3 axis = Normalize(Cross(f, ortho));
+		return MakeRotateAxisAngle(axis, pi); // ← ここで符号反転
+	}
+
+	Vector3 axis = Normalize(Cross(f, t));
+	return MakeRotateAxisAngle(Vector3{-axis.x, -axis.y, -axis.z }, angle); // ← ここも符号反転
+
 }
 
-Vector3 Normalize(Vector3 v1) {
-	Vector3 result;
-
-	result.x = v1.x / std::sqrtf(Dot(v1, v1));
-	result.y = v1.y / std::sqrtf(Dot(v1, v1));
-	result.z = v1.z / std::sqrtf(Dot(v1, v1));
-
-	return result;
-}
 
 static const int kRowHeight = 20;
 static const int kColumnWidth = 60;
