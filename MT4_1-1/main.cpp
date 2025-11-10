@@ -68,7 +68,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		/// ↓描画処理ここから
 		///
 
-		MatrixScreenPrintf(0, 0, rotateMatrix2, "rotateMatrix0");
+		MatrixScreenPrintf(0, 0, rotateMatrix0, "rotateMatrix0");
+		MatrixScreenPrintf(0, 100, rotateMatrix1, "rotateMatrix0");
+		MatrixScreenPrintf(0, 200, rotateMatrix2, "rotateMatrix0");
 		//MatrixScreenPrintf(0, 100, rotateMatrix1, "rotateMatrix1");
 		//MatrixScreenPrintf(0, 0, rotateMatrix2, "rotateMatrix2");
 
