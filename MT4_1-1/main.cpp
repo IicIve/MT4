@@ -16,7 +16,7 @@ struct Vector3 {
 	float z;
 };
 
-const char kWindowTitle[] = "LE2C_26_ミヤシタツナグ";
+const char kWindowTitle[] = "LE";
 
 // Windowsアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
@@ -35,7 +35,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	Vector3 from0 = Normalize(Vector3{ 1.0f,0.7f, 0.5f });
 	Vector3 to0 = Vector3{ -from0.x, -from0.y, -from0.z };
-	Vector3 from1 = Normalize(Vector3{ -0.6f,0.9f, 0.2f });
+	Vector3 from1 = Normalize(Vector3{ -0.6f, 0.9f, 0.2f });
 	Vector3 to1 = Normalize(Vector3{ 0.4f, 0.7f, -0.5f });
 	Matrix4x4 rotateMatrix0 = DirectionToDirection(
 		Normalize(Vector3{ 1.0f,0.0f,0.0f }), Normalize(Vector3{ -1.0f,0.0f, 0.0f })
@@ -69,10 +69,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		///
 
 		MatrixScreenPrintf(0, 0, rotateMatrix0, "rotateMatrix0");
-		MatrixScreenPrintf(0, 100, rotateMatrix1, "rotateMatrix0");
-		MatrixScreenPrintf(0, 200, rotateMatrix2, "rotateMatrix0");
-		//MatrixScreenPrintf(0, 100, rotateMatrix1, "rotateMatrix1");
-		//MatrixScreenPrintf(0, 0, rotateMatrix2, "rotateMatrix2");
+		MatrixScreenPrintf(0, 100, rotateMatrix1, "rotateMatrix1");
+		MatrixScreenPrintf(0, 200, rotateMatrix2, "rotateMatrix2");
 
 		///
 		/// ↑描画処理ここまで
@@ -101,12 +99,21 @@ float Dot(const Vector3& v1, const Vector3& v2) {
 }
 
 Vector3 Cross(const Vector3& v1, const Vector3& v2) {
-	Vector3 result;
-	result.x = v1.y * v2.z - v1.z * v2.y;
-	result.y = v1.z * v2.x - v1.x * v2.z;
-	result.z = v1.x * v2.y - v1.y * v2.x;
-	return result;
+	// 左手系クロス（右手系とは Y の符号が逆になる）
+	return {
+		v1.y * v2.z - v1.z * v2.y,
+		-(v1.x * v2.z - v1.z * v2.x),
+		v1.x * v2.y - v1.y * v2.x
+	};
 }
+
+//Vector3 Cross(const Vector3& v1, const Vector3& v2) {
+//	return {
+//		v1.y * v2.z - v1.z * v2.y,
+//		v1.z * v2.x - v1.x * v2.z,
+//		v1.x * v2.y - v1.y * v2.x
+//	};
+//}
 
 float Length(const Vector3& v) {
 	return std::sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
@@ -132,96 +139,120 @@ Matrix4x4 MakeIdentity4x4() {
 	return result;
 }
 
-Matrix4x4 MakeRotateAxisAngle(const Vector3& axis, float angle) {
-	// 軸の正規化
-	Vector3 n = axis;
-	float len = std::sqrt(n.x * n.x + n.y * n.y + n.z * n.z);
-	if (len != 0.0f) {
-		n.x /= len;
-		n.y /= len;
-		n.z /= len;
-	}
+//Matrix4x4 MakeRotateAxisAngle(const Vector3& axis, float angle) {
+//
+//	Vector3 n = Normalize(axis);
+//
+//	float c = cosf(angle);
+//	float s = sinf(angle);  // 左手系では sin の符号反転なし
+//	float oneMinusC = 1.0f - c;
+//
+//	Matrix4x4 R{};
+//
+//	R.m[0][0] = c + n.x * n.x * oneMinusC;
+//	R.m[0][1] = n.x * n.y * oneMinusC - n.z * s;
+//	R.m[0][2] = n.x * n.z * oneMinusC + n.y * s;
+//	R.m[0][3] = 0;
+//
+//	R.m[1][0] = n.y * n.x * oneMinusC + n.z * s;
+//	R.m[1][1] = c + n.y * n.y * oneMinusC;
+//	R.m[1][2] = n.y * n.z * oneMinusC - n.x * s;
+//	R.m[1][3] = 0;
+//
+//	R.m[2][0] = n.z * n.x * oneMinusC - n.y * s;
+//	R.m[2][1] = n.z * n.y * oneMinusC + n.x * s;
+//	R.m[2][2] = c + n.z * n.z * oneMinusC;
+//	R.m[2][3] = 0;
+//
+//	R.m[3][0] = R.m[3][1] = R.m[3][2] = 0;
+//	R.m[3][3] = 1;
+//
+//	return R;
+//}
 
-	float c = std::cos(angle);
-	float s = std::sin(angle);
+Matrix4x4 MakeRotateAxisAngle(const Vector3& axis, float angle) {
+
+	Vector3 n = Normalize(axis);
+
+	float c = cosf(angle);
+	float s = sinf(angle); // ← 左手系では -s
 	float oneMinusC = 1.0f - c;
 
-	// S = I * cosθ
-	Matrix4x4 S = {};
-	S.m[0][0] = c;
-	S.m[1][1] = c;
-	S.m[2][2] = c;
-	S.m[3][3] = 0.0f;
+	Matrix4x4 R{};
 
-	// P = (1 - cosθ) * a a^T
-	Matrix4x4 P = {};
-	P.m[0][0] = n.x * n.x * oneMinusC;
-	P.m[0][1] = n.x * n.y * oneMinusC;
-	P.m[0][2] = n.x * n.z * oneMinusC;
+	R.m[0][0] = c + n.x * n.x * oneMinusC;
+	R.m[0][1] = n.x * n.y * oneMinusC - n.z * s;     // -n.z*s
+	R.m[0][2] = n.x * n.z * oneMinusC + n.y * s;     // +n.y*s
+	R.m[0][3] = 0;
 
-	P.m[1][0] = n.y * n.x * oneMinusC;
-	P.m[1][1] = n.y * n.y * oneMinusC;
-	P.m[1][2] = n.y * n.z * oneMinusC;
+	R.m[1][0] = n.y * n.x * oneMinusC + n.z * s;     // +n.z*s
+	R.m[1][1] = c + n.y * n.y * oneMinusC;
+	R.m[1][2] = n.y * n.z * oneMinusC - n.x * s;     // -n.x*s
+	R.m[1][3] = 0;
 
-	P.m[2][0] = n.z * n.x * oneMinusC;
-	P.m[2][1] = n.z * n.y * oneMinusC;
-	P.m[2][2] = n.z * n.z * oneMinusC;
+	R.m[2][0] = n.z * n.x * oneMinusC - n.y * s;     // -n.y*s
+	R.m[2][1] = n.z * n.y * oneMinusC + n.x * s;     // +n.x*s
+	R.m[2][2] = c + n.z * n.z * oneMinusC;
+	R.m[2][3] = 0;
 
-	P.m[3][3] = 0.0f;
-
-	// C = [a]_× sinθ
-	Matrix4x4 C = {};
-	C.m[0][0] = 0.0f;
-	C.m[0][1] = -n.z * s;    // ← 符号を反転
-	C.m[0][2] = n.y * s;
-
-	C.m[1][0] = n.z * s;
-	C.m[1][1] = 0.0f;
-	C.m[1][2] = -n.x * s;
-
-	C.m[2][0] = -n.y * s;
-	C.m[2][1] = n.x * s;
-	C.m[2][2] = 0.0f;
-
-	C.m[3][3] = 1.0f;
-
-	// R = S + P + C
-	Matrix4x4 R = {};
-	for (int i = 0; i < 4; ++i) {
-		for (int j = 0; j < 4; ++j) {
-			R.m[i][j] = S.m[i][j] + P.m[i][j] + C.m[i][j];
-		}
-	}
+	R.m[3][0] = R.m[3][1] = R.m[3][2] = 0;
+	R.m[3][3] = 1;
 
 	return R;
-
 }
+
+//Matrix4x4 DirectionToDirection(const Vector3& from, const Vector3& to) {
+//
+//	Vector3 f = Normalize(from);
+//	Vector3 t = Normalize(to);
+//
+//	float dotValue = std::clamp(Dot(f, t), -1.0f, 1.0f);
+//	float angle = std::acos(dotValue);
+//
+//	if (fabsf(angle) < 1e-5f) {
+//		return MakeIdentity4x4();
+//	}
+//
+//	const float PI = std::numbers::pi_v<float>;
+//	if (fabsf(angle - PI) < 1e-5f) {
+//		Vector3 ortho = (fabsf(f.x) < 0.9f) ? Vector3{ 1, 0, 0 } : Vector3{ 0, 1, 0 };
+//		Vector3 axis = Normalize(Cross(ortho, f)); // ← 左手系
+//		return MakeRotateAxisAngle(axis, PI);
+//	}
+//
+//	// 左手系の軸は Cross(t, f)
+//	Vector3 axis = Normalize(Cross(t, f));
+//
+//	return MakeRotateAxisAngle(axis, angle);
+//}
 
 Matrix4x4 DirectionToDirection(const Vector3& from, const Vector3& to) {
+
 	
+
+	//// 右手系！軸は Cross(f, t)
 	Vector3 f = Normalize(from);
 	Vector3 t = Normalize(to);
+	//Vector3 axis = Normalize(Cross(f, t));
 
-	float dotValue = Dot(f, t);
-	dotValue = std::clamp(dotValue, -1.0f, 1.0f);
+	float dotValue = std::clamp(Dot(f, t), -1.0f, 1.0f);
 	float angle = std::acos(dotValue);
 
-	if (std::fabs(angle) < 1e-5f) {
+	/*if (fabsf(angle) < 1e-5f) {
 		return MakeIdentity4x4();
+	}*/
+
+	const float PI = std::numbers::pi_v<float>;
+	if (fabsf(angle - PI) < 1e-5f) {
+		Vector3 ortho = (fabsf(f.x) < 0.9f) ? Vector3{ 1, 0, 0 } : Vector3{ 0, 1, 0 };
+		Vector3 axis = Normalize(Cross(f, ortho)); // 左手系
+		return MakeRotateAxisAngle(axis, angle);
 	}
 
-	float pi = std::numbers::pi_v<float>;
-	if (std::fabs(angle - pi) < 1e-5f) {
-		Vector3 ortho = (std::fabs(f.x) < 0.9f) ? Vector3{ 1, 0, 0 } : Vector3{ 0, 1, 0 };
-		Vector3 axis = Normalize(Cross(f, ortho));
-		return MakeRotateAxisAngle(axis, pi); // ← ここで符号反転
-	}
-
-	Vector3 axis = Normalize(Cross(f, t));
-	return MakeRotateAxisAngle(Vector3{-axis.x, -axis.y, -axis.z }, angle); // ← ここも符号反転
-
+	// 左手系の軸は Cross(to, from)
+	Vector3 axis = Normalize(Cross(t, f));
+	return MakeRotateAxisAngle(axis, angle);
 }
-
 
 static const int kRowHeight = 20;
 static const int kColumnWidth = 60;
