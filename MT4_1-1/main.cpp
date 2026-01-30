@@ -68,6 +68,17 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	Vector3 rotateByQuaternion = RotateVector(pointY, rotation);
 	Vector3 rotateByMatrix = Transform(pointY, rotateMatrix);
 
+	Quaternion Slerp(const Quaternion & q0, const Quaternion & q1, float t);
+
+	Quaternion rotation0 = MakeRotateAxisAngleQuaternion({ 0.71f, 0.71f,0.0f }, 0.3f);
+	Quaternion rotation1 = MakeRotateAxisAngleQuaternion({ 0.71f, 0.0f,0.71f }, 3.141592f);
+
+	Quaternion interporate0 = Slerp(rotation0, rotation1, 0.0f);
+	Quaternion interporate1 = Slerp(rotation0, rotation1, 0.3f);
+	Quaternion interporate2 = Slerp(rotation0, rotation1, 0.5f);
+	Quaternion interporate3 = Slerp(rotation0, rotation1, 0.7f);
+	Quaternion interporate4 = Slerp(rotation0, rotation1, 1.0f);
+
 	// ウィンドウの×ボタンが押されるまでループ
 	while (Novice::ProcessMessage() == 0) {
 		// フレームの開始
@@ -89,10 +100,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		/// ↓描画処理ここから
 		///
 
-		QuaternionScreenPrintf(0, 0, rotation, "rotation");
-		MatrixScreenPrintf(0, 20, rotateMatrix, "rotateMatrix");
+		QuaternionScreenPrintf(0, 0, interporate0, "interporate0");
+		QuaternionScreenPrintf(0, 20, interporate1, "interporate1");
+		QuaternionScreenPrintf(0, 40, interporate2, "interporate2");
+		QuaternionScreenPrintf(0, 60, interporate3, "interporate3");
+		QuaternionScreenPrintf(0, 80, interporate4, "interporate4");
+		/*MatrixScreenPrintf(0, 20, rotateMatrix, "rotateMatrix");
 		VectorScreenPrintf(0, 120, rotateByQuaternion, "rotateByQuatrenion");
-		VectorScreenPrintf(0, 210, rotateByMatrix, "rotateByMatrix");
+		VectorScreenPrintf(0, 210, rotateByMatrix, "rotateByMatrix");*/
 
 		///
 		/// ↑描画処理ここまで
@@ -407,4 +422,63 @@ void QuaternionScreenPrintf(int x, int y, const Quaternion& quaternion, const ch
 	Novice::ScreenPrintf(x + kColumnWidth * 2, y, "%.02f", quaternion.z);
 	Novice::ScreenPrintf(x + kColumnWidth * 3, y, "%.02f", quaternion.w);
 	Novice::ScreenPrintf(x + kColumnWidth * 4, y, "%s", label);
+}
+
+Quaternion Slerp(const Quaternion& q0, const Quaternion& q1, float t) {
+	// 内積（cosθ）
+	float dot =
+		q0.x * q1.x +
+		q0.y * q1.y +
+		q0.z * q1.z +
+		q0.w * q1.w;
+
+	Quaternion q1Copy = q1;
+
+	// 逆方向を向いていたら反転（最短経路で補間）
+	if (dot < 0.0f) {
+		dot = -dot;
+		q1Copy.x = -q1Copy.x;
+		q1Copy.y = -q1Copy.y;
+		q1Copy.z = -q1Copy.z;
+		q1Copy.w = -q1Copy.w;
+	}
+
+	// ほぼ同じ向きなら Lerp（数値安定性対策）
+	const float DOT_THRESHOLD = 0.9995f;
+	if (dot > DOT_THRESHOLD) {
+		Quaternion result;
+		result.x = q0.x + t * (q1Copy.x - q0.x);
+		result.y = q0.y + t * (q1Copy.y - q0.y);
+		result.z = q0.z + t * (q1Copy.z - q0.z);
+		result.w = q0.w + t * (q1Copy.w - q0.w);
+
+		// 正規化
+		float len = std::sqrt(
+			result.x * result.x +
+			result.y * result.y +
+			result.z * result.z +
+			result.w * result.w
+		);
+		result.x /= len;
+		result.y /= len;
+		result.z /= len;
+		result.w /= len;
+
+		return result;
+	}
+
+	// θ = acos(dot)
+	float theta = std::acos(dot);
+	float sinTheta = std::sin(theta);
+
+	float w0 = std::sin((1.0f - t) * theta) / sinTheta;
+	float w1 = std::sin(t * theta) / sinTheta;
+
+	Quaternion result;
+	result.x = w0 * q0.x + w1 * q1Copy.x;
+	result.y = w0 * q0.y + w1 * q1Copy.y;
+	result.z = w0 * q0.z + w1 * q1Copy.z;
+	result.w = w0 * q0.w + w1 * q1Copy.w;
+
+	return result;
 }
