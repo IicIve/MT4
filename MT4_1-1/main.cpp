@@ -16,7 +16,7 @@ struct Vector3 {
 	float z;
 };
 
-const char kWindowTitle[] = "LE";
+const char kWindowTitle[] = "LE2C_26";
 
 // Windowsアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
@@ -43,9 +43,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	Matrix4x4 rotateMatrix1 = DirectionToDirection(from0, to0);
 	Matrix4x4 rotateMatrix2 = DirectionToDirection(from1, to1);
 
-	/*Vector3 axis = Normalize({ 1.0f, 1.0f, 1.0f });
-	float angle = 0.44f;
-	Matrix4x4 rotateMatrix = MakeRotateAxisAngle(axis, angle);*/
+	
 
 	// ウィンドウの×ボタンが押されるまでループ
 	while (Novice::ProcessMessage() == 0) {
@@ -107,14 +105,6 @@ Vector3 Cross(const Vector3& v1, const Vector3& v2) {
 	};
 }
 
-//Vector3 Cross(const Vector3& v1, const Vector3& v2) {
-//	return {
-//		v1.y * v2.z - v1.z * v2.y,
-//		v1.z * v2.x - v1.x * v2.z,
-//		v1.x * v2.y - v1.y * v2.x
-//	};
-//}
-
 float Length(const Vector3& v) {
 	return std::sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
 }
@@ -139,36 +129,7 @@ Matrix4x4 MakeIdentity4x4() {
 	return result;
 }
 
-//Matrix4x4 MakeRotateAxisAngle(const Vector3& axis, float angle) {
-//
-//	Vector3 n = Normalize(axis);
-//
-//	float c = cosf(angle);
-//	float s = sinf(angle);  // 左手系では sin の符号反転なし
-//	float oneMinusC = 1.0f - c;
-//
-//	Matrix4x4 R{};
-//
-//	R.m[0][0] = c + n.x * n.x * oneMinusC;
-//	R.m[0][1] = n.x * n.y * oneMinusC - n.z * s;
-//	R.m[0][2] = n.x * n.z * oneMinusC + n.y * s;
-//	R.m[0][3] = 0;
-//
-//	R.m[1][0] = n.y * n.x * oneMinusC + n.z * s;
-//	R.m[1][1] = c + n.y * n.y * oneMinusC;
-//	R.m[1][2] = n.y * n.z * oneMinusC - n.x * s;
-//	R.m[1][3] = 0;
-//
-//	R.m[2][0] = n.z * n.x * oneMinusC - n.y * s;
-//	R.m[2][1] = n.z * n.y * oneMinusC + n.x * s;
-//	R.m[2][2] = c + n.z * n.z * oneMinusC;
-//	R.m[2][3] = 0;
-//
-//	R.m[3][0] = R.m[3][1] = R.m[3][2] = 0;
-//	R.m[3][3] = 1;
-//
-//	return R;
-//}
+
 
 Matrix4x4 MakeRotateAxisAngle(const Vector3& axis, float angle) {
 
@@ -201,57 +162,45 @@ Matrix4x4 MakeRotateAxisAngle(const Vector3& axis, float angle) {
 	return R;
 }
 
-//Matrix4x4 DirectionToDirection(const Vector3& from, const Vector3& to) {
-//
-//	Vector3 f = Normalize(from);
-//	Vector3 t = Normalize(to);
-//
-//	float dotValue = std::clamp(Dot(f, t), -1.0f, 1.0f);
-//	float angle = std::acos(dotValue);
-//
-//	if (fabsf(angle) < 1e-5f) {
-//		return MakeIdentity4x4();
-//	}
-//
-//	const float PI = std::numbers::pi_v<float>;
-//	if (fabsf(angle - PI) < 1e-5f) {
-//		Vector3 ortho = (fabsf(f.x) < 0.9f) ? Vector3{ 1, 0, 0 } : Vector3{ 0, 1, 0 };
-//		Vector3 axis = Normalize(Cross(ortho, f)); // ← 左手系
-//		return MakeRotateAxisAngle(axis, PI);
-//	}
-//
-//	// 左手系の軸は Cross(t, f)
-//	Vector3 axis = Normalize(Cross(t, f));
-//
-//	return MakeRotateAxisAngle(axis, angle);
-//}
+
 
 Matrix4x4 DirectionToDirection(const Vector3& from, const Vector3& to) {
-
-	
-
 	//// 右手系！軸は Cross(f, t)
 	Vector3 f = Normalize(from);
 	Vector3 t = Normalize(to);
 	//Vector3 axis = Normalize(Cross(f, t));
 
-	float dotValue = std::clamp(Dot(f, t), -1.0f, 1.0f);
-	float angle = std::acos(dotValue);
-
-	/*if (fabsf(angle) < 1e-5f) {
-		return MakeIdentity4x4();
-	}*/
-
+	const float EPS = 1e-6f;
 	const float PI = std::numbers::pi_v<float>;
-	if (fabsf(angle - PI) < 1e-5f) {
-		Vector3 ortho = (fabsf(f.x) < 0.9f) ? Vector3{ 1, 0, 0 } : Vector3{ 0, 1, 0 };
-		Vector3 axis = Normalize(Cross(f, ortho)); // 左手系
-		return MakeRotateAxisAngle(axis, angle);
+
+	float dotValue = std::clamp(Dot(f, t), -1.0f, 1.0f);
+	//float angle = std::acos(dotValue);
+
+	// 同方向
+	if (dotValue > 1.0f - EPS) {
+		return MakeIdentity4x4();
 	}
 
-	// 左手系の軸は Cross(to, from)
-	Vector3 axis = Normalize(Cross(t, f));
+
+	// 反対方向（180度）
+	if (dotValue < -1.0f + EPS) {
+		// f と直交する安定した軸を選ぶ
+		Vector3 axis;
+		if (fabsf(f.x) < fabsf(f.z)) {
+			axis = Normalize(Cross(f, { 1,0,0 }));
+		} else {
+			axis = Normalize(Cross(f, { 0,0,1 }));
+		}
+
+		return MakeRotateAxisAngle(axis, PI);
+	}
+
+	// 通常ケース
+	Vector3 axis = Normalize(Cross(f, t)); // 左手系
+	float angle = std::acos(dotValue);
 	return MakeRotateAxisAngle(axis, angle);
+
+	
 }
 
 static const int kRowHeight = 20;
