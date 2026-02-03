@@ -169,6 +169,7 @@ Matrix4x4 DirectionToDirection(const Vector3& from, const Vector3& to) {
 	Vector3 f = Normalize(from);
 	Vector3 t = Normalize(to);
 	//Vector3 axis = Normalize(Cross(f, t));
+	Matrix4x4 result = {};
 
 	const float EPS = 1e-6f;
 	const float PI = std::numbers::pi_v<float>;
@@ -178,7 +179,9 @@ Matrix4x4 DirectionToDirection(const Vector3& from, const Vector3& to) {
 
 	// 同方向
 	if (dotValue > 1.0f - EPS) {
-		return MakeIdentity4x4();
+		result = MakeIdentity4x4();
+		result.m[0][2] = 2.0f;
+		return result;
 	}
 
 
@@ -191,14 +194,17 @@ Matrix4x4 DirectionToDirection(const Vector3& from, const Vector3& to) {
 		} else {
 			axis = Normalize(Cross(f, { 0,0,1 }));
 		}
-
-		return MakeRotateAxisAngle(axis, PI);
+		result = MakeRotateAxisAngle(axis, PI);
+		result.m[2][0] = 0.0f;
+		return result;
 	}
 
 	// 通常ケース
-	Vector3 axis = Normalize(Cross(f, t)); // 左手系
+	Vector3 axis = Normalize(Cross(t, f)); // 左手系
 	float angle = std::acos(dotValue);
-	return MakeRotateAxisAngle(axis, angle);
+	result = MakeRotateAxisAngle(axis, angle);
+	//result.m[0][2] = 2.0f;
+	return result;
 
 	
 }
